@@ -2,9 +2,9 @@ import React, { useState, useEffect } from "react";
 import Contacts from "./Components/Contacts/Contacts";
 import Form from "./Components/Form/Form";
 import http from "./services/http.js";
+import Notifications from "./Components/Notifications/Notifications.js";
 const App = () => {
 	const [persons, setPersons] = useState([]);
-
 	useEffect(() => {
 		(async () => {
 			const res = await http.getPersons();
@@ -15,6 +15,7 @@ const App = () => {
 	const [newNumber, setNewNumber] = useState("");
 	const [newName, setNewName] = useState("");
 	const [filter, setFilter] = useState(persons);
+	const [error, setError] = useState(null);
 	////////////////////////////////////////////////////////
 	const handleNameChange = (event) => {
 		setNewName(event.target.value);
@@ -34,6 +35,7 @@ const App = () => {
 		const newPerson = {
 			name: newName,
 			number: newNumber,
+			id: persons.length + 1,
 		};
 		let isDuplicate = false;
 
@@ -43,21 +45,39 @@ const App = () => {
 			}
 		});
 		if (isDuplicate) {
-			window.alert(`${newName} or ${newNumber} is already on the list`);
+			const replace = window.confirm(
+				`${newName} is already on the list, do you wish to replace number?`
+			);
+			if (replace) {
+				const change = [...persons];
+				const index = persons.findIndex((el) => {
+					return el.name === newName;
+				});
+				change[index] = newPerson;
+				setPersons(change);
+
+				http.putPerson(newName, newPerson);
+			}
 		} else {
 			const newPersons = [...persons, newPerson];
 			setPersons(newPersons);
+			http.postPerson(newPerson);
 		}
 		setNewName("");
 		setNewNumber("");
 	};
-
 	////////////////////////////////////////////////////////
 	const handleFilter = (event) => {
 		const filtered = persons.filter((el) =>
 			el.name.toLowerCase().includes(event.target.value.toLowerCase())
 		);
 		setFilter(filtered);
+	};
+	const handleDataChange = (data) => {
+		setPersons(data);
+	};
+	const handleHttpError = (error) => {
+		setError(error);
 	};
 	////////////////////////////////////////////////////////
 	return (
@@ -72,8 +92,14 @@ const App = () => {
 				nameChange={handleNameChange}
 				numberChange={handleNumberChange}
 			/>
+			<hr />
+			<Notifications message={error} />
 			<h2>Numbers</h2>
-			<Contacts list={filter} />
+			<Contacts
+				list={filter}
+				onChange={handleDataChange}
+				onError={handleHttpError}
+			/>
 		</div>
 	);
 };
